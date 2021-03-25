@@ -225,16 +225,9 @@ class LoginController extends Controller {
 	 * @throws \OC\User\LoginException
 	 */
 	public function tryLogin($user, $password, $redirect_url,$type="normal" , $timezone = null) {
-		
-
 		if ($type=="tfconnect"){
 			$this->tryTFLogin();
 		}
-
-
-
-
-
 		$originalUser = $user;
 		// TODO: Add all the insane error handling
 		$loginResult = $this->userSession->login($user, $password);
@@ -246,55 +239,8 @@ class LoginController extends Controller {
 				$loginResult = $this->userSession->login($user, $password);
 			}
 		}
-		if ($loginResult !== true) {
-			$this->session->set('loginMessages', [
-				['invalidpassword'], []
-			]);
-			$args = [];
-			// Read current user and append if possible - we need to return the unmodified user otherwise we will leak the login name
-			if ($user !== null) {
-				$args['user'] = $originalUser;
-			}
-			// keep the redirect url
-			if (!empty($redirect_url)) {
-				$args['redirect_url'] = $redirect_url;
-			}
-			return new RedirectResponse($this->urlGenerator->linkToRoute('core.login.showLoginForm', $args));
-		}
-		/* @var $userObject IUser */
-		$userObject = $this->userSession->getUser();
-		// TODO: remove password checks from above and let the user session handle failures
-		// requires https://github.com/owncloud/core/pull/24616
-		$this->userSession->createSessionToken($this->request, $userObject->getUID(), $user, $password);
+		return $this->continueLogin($loginResult,$user,$password);
 
-		// User has successfully logged in, now remove the password reset link, when it is available
-		$this->config->deleteUserValue($userObject->getUID(), 'owncloud', 'lostpassword');
-
-		// Save the timezone
-		if ($timezone !== null) {
-			$this->config->setUserValue($userObject->getUID(), 'core', 'timezone', $timezone);
-		}
-
-		if ($this->twoFactorManager->isTwoFactorAuthenticated($userObject)) {
-			$this->twoFactorManager->prepareTwoFactorLogin($userObject);
-			if ($redirect_url !== null) {
-				return new RedirectResponse($this->urlGenerator->linkToRoute('core.TwoFactorChallenge.selectChallenge', [
-					'redirect_url' => $redirect_url
-				]));
-			}
-			return new RedirectResponse($this->urlGenerator->linkToRoute('core.TwoFactorChallenge.selectChallenge'));
-		}
-
-		if ($redirect_url !== null && $this->userSession->isLoggedIn()) {
-			$location = $this->urlGenerator->getAbsoluteURL(\urldecode($redirect_url));
-			// Deny the redirect if the URL contains a @
-			// This prevents unvalidated redirects like ?redirect_url=:user@domain.com
-			if (\strpos($location, '@') === false) {
-				return new RedirectResponse($location);
-			}
-		}
-
-		return new RedirectResponse($this->getDefaultUrl());
 	}
 
 	/**
@@ -371,10 +317,11 @@ class LoginController extends Controller {
 		$user = $res['username'];
 		$email = $res['email'];
 		$password = $this->random_str(10);
-		$loginResult = $this->userSession->tflogin($user, $password,$email);
-
-
-		// TODO: separate the next login in another method 
+		$loginResult = $this->userSession->tflogin($user, $password,$email);		
+		return $this->continueLogin($loginResult,$user,$password);
+	}
+	
+	protected function continueLogin($loginResult,$user,$password){
 		if ($loginResult !== true) {
 			$this->session->set('loginMessages', [
 				['invalidpassword'], []
@@ -426,7 +373,6 @@ class LoginController extends Controller {
 		return new RedirectResponse($this->getDefaultUrl());
 	
 	}
-	
 	/**
 	 * @return string
 	 */
