@@ -387,10 +387,10 @@ class LoginController extends Controller {
 		$res = json_decode($res,true);
 		$user = $res['username'];
 		# TODO: Generate password
-		$password = "hamdahamda";
+		$password = $this->random_str(10);
 		// $userObj = $this->userManager->get($user);
 		// throw new \Exception("\$loginResult = $user");
-		$loginResult = $this->userSession->tflogin($user);
+		$loginResult = $this->userSession->tflogin($user, $password);
 
 
 		// TODO: separate the next login in another method 
@@ -458,5 +458,32 @@ class LoginController extends Controller {
 	 */
 	public function getSession() {
 		return $this->session;
+	}
+	
+	/**
+	 * Generate a random string, using a cryptographically secure 
+	 * pseudorandom number generator (random_int)
+	 * 
+	 * For PHP 7, random_int is a PHP core function
+	 * For PHP 5.x, depends on https://github.com/paragonie/random_compat
+	 * 
+	 * @param int $length      How many characters do we want?
+	 * @param string $keyspace A string of all possible characters
+	 *                         to select from
+	 * @return string
+	 */
+	protected function random_str(
+		$length,
+		$keyspace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	) {
+		$str = '';
+		$max = mb_strlen($keyspace, '8bit') - 1;
+		if ($max < 1) {
+			throw new Exception('$keyspace must be at least two characters long');
+		}
+		for ($i = 0; $i < $length; ++$i) {
+			$str .= $keyspace[random_int(0, $max)];
+		}
+		return $str;
 	}
 }
