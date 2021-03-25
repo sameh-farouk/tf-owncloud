@@ -566,7 +566,7 @@ class Session implements IUserSession, Emitter {
 		}
 
 		// injecting l10n does not work - there is a circular dependency between session and \OCP\L10N\IFactory
-		$message = \OC::$server->getL10N('lib')->t('User disabled');
+		$message = \OC::$server->getL10N('lib')->t('User account disabled, please contact the administrator to enable this account');
 		throw new LoginException($message);
 	}
 
