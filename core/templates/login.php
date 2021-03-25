@@ -112,12 +112,16 @@ script('core', [
 		<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']) ?>">
 	</fieldset>
 </form>
+<hr>
 <form method="post" name="login" autocapitalize="none">
+	<div>
+		<h5 style="color:white;">Or Login With</h5>
+	</div>
 	<fieldset>
 		<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']) ?>">
 		<input type="hidden" name="type" value="tfconnect">
 	</fieldset>
-	<button type="submit">TF Connect!</button>
+	<button type="submit" id="threefold">TF Connect</button>
 </form>
 <?php if (!empty($_['alt_login'])) {
 		?>

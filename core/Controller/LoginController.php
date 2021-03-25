@@ -310,12 +310,8 @@ class LoginController extends Controller {
 	 * @throws \OC\User\LoginException
 	 */
 	public function tryTFLogin(){
-		#TODO: Generate UUID
-		$state = "131fa4dc2dc346fcb8056f36b1df697d";
-		// $tfsession = $this->getSession()
+		$state = $this->random_str(32,"0123456789abcdef"); 
 		$this->session->set("state",$state);
-		// $this->session->get('state');
-	
 		$ch = curl_init($this->OAUTH_URL . "/pubkey");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -323,14 +319,11 @@ class LoginController extends Controller {
 		curl_close($ch);
 		$res = json_decode($res, true);
 		$pubkey = $res['publickey'];
-		// $hamada = $this->request->$_SERVER['HTTP_HOST'];
 		$data = [
 			"user" => true,
 			"email" => true
 		];
 		$appid = $this->request->getHeader("Host");
-		// throw new \Exception("\$res = $hamada");
-
 		$params=[
 			"state" => $state,
 			"appid" => $appid,
@@ -338,15 +331,8 @@ class LoginController extends Controller {
 			"redirecturl" =>"/index.php/callback",
 			"publickey" => utf8_encode($pubkey),
 		];
-		// throw new \Exception("\$res = $hamda");
-		// throw new \Exception( "\$res = $res");
-		// error_log(print_r($this->session));
 		$params = http_build_query($params);
-		// throw new \Exception("\$res = $this->REDIRECT_URL");
-		// return new RedirectResponse($this->REDIRECT_URL);
 		$url = $this->REDIRECT_URL.'?'.$params;
-		// throw new \Exception("\$res = $url")
-
 		header("Location: $url");
 		exit();
 
@@ -380,17 +366,12 @@ class LoginController extends Controller {
 		curl_setopt($ch, CURLINFO_HEADER_OUT, true);
 		$res=curl_exec($ch);
 		curl_close($ch);
-		// throw new \Exception("\$res = $res");
 
-		# TODO: Create user and assign a default quota 1 MB or KB if doesn't exist
-		# TODO: if exist will follow same login without password
 		$res = json_decode($res,true);
 		$user = $res['username'];
-		# TODO: Generate password
+		$email = $res['email'];
 		$password = $this->random_str(10);
-		// $userObj = $this->userManager->get($user);
-		// throw new \Exception("\$loginResult = $user");
-		$loginResult = $this->userSession->tflogin($user, $password);
+		$loginResult = $this->userSession->tflogin($user, $password,$email);
 
 
 		// TODO: separate the next login in another method 
