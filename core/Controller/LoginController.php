@@ -39,6 +39,8 @@ use OCP\ISession;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\IUserManager;
+use \OCP\ILogger;
+
 
 class LoginController extends Controller {
 
@@ -63,6 +65,8 @@ class LoginController extends Controller {
 	/** @var ILicenseManager */
 	private $licenseManager;
 
+	private $OAUTH_URL;
+	private $REDIRECT_URL;
 	/**
 	 * @param string $appName
 	 * @param IRequest $request
@@ -83,6 +87,9 @@ class LoginController extends Controller {
 		$this->urlGenerator = $urlGenerator;
 		$this->twoFactorManager = $twoFactorManager;
 		$this->licenseManager = $licenseManager;
+		$this->OAUTH_URL="https://oauth.threefold.io";
+		$this->REDIRECT_URL="https://login.threefold.me";
+		
 	}
 
 	/**
@@ -217,7 +224,17 @@ class LoginController extends Controller {
 	 * @throws \OCP\PreConditionNotMetException
 	 * @throws \OC\User\LoginException
 	 */
-	public function tryLogin($user, $password, $redirect_url, $timezone = null) {
+	public function tryLogin($user, $password, $redirect_url,$type="normal" , $timezone = null) {
+		
+
+		if ($type=="tfconnect"){
+			$this->tryTFLogin();
+		}
+
+
+
+
+
 		$originalUser = $user;
 		// TODO: Add all the insane error handling
 		$loginResult = $this->userSession->login($user, $password);
@@ -280,6 +297,155 @@ class LoginController extends Controller {
 		return new RedirectResponse($this->getDefaultUrl());
 	}
 
+	/**
+	 * @PublicPage
+	 * @UseSession
+	 *
+	 * @param string $user
+	 * @param string $password
+	 * @param string $redirect_url
+	 * @param string $timezone
+	 * @return RedirectResponse
+	 * @throws \OCP\PreConditionNotMetException
+	 * @throws \OC\User\LoginException
+	 */
+	public function tryTFLogin(){
+		#TODO: Generate UUID
+		$state = "131fa4dc2dc346fcb8056f36b1df697d";
+		// $tfsession = $this->getSession()
+		$this->session->set("state",$state);
+		// $this->session->get('state');
+	
+		$ch = curl_init($this->OAUTH_URL . "/pubkey");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		$res=curl_exec($ch);
+		curl_close($ch);
+		$res = json_decode($res, true);
+		$pubkey = $res['publickey'];
+		// $hamada = $this->request->$_SERVER['HTTP_HOST'];
+		$data = [
+			"user" => true,
+			"email" => true
+		];
+		$appid = $this->request->getHeader("Host");
+		// throw new \Exception("\$res = $hamada");
+
+		$params=[
+			"state" => $state,
+			"appid" => $appid,
+			"scope" => json_encode($data), 
+			"redirecturl" =>"/index.php/callback",
+			"publickey" => utf8_encode($pubkey),
+		];
+		// throw new \Exception("\$res = $hamda");
+		// throw new \Exception( "\$res = $res");
+		// error_log(print_r($this->session));
+		$params = http_build_query($params);
+		// throw new \Exception("\$res = $this->REDIRECT_URL");
+		// return new RedirectResponse($this->REDIRECT_URL);
+		$url = $this->REDIRECT_URL.'?'.$params;
+		// throw new \Exception("\$res = $url")
+
+		header("Location: $url");
+		exit();
+
+	}
+
+	/**
+	 * @PublicPage
+	 * @UseSession
+	 *
+	 * @param string $user
+	 * @param string $password
+	 * @param string $redirect_url
+	 * @param string $timezone
+	 * @return RedirectResponse
+	 * @throws \OCP\PreConditionNotMetException
+	 * @throws \OC\User\LoginException
+	 */
+	public function callback(){
+		$session = $this->session->get('state');
+		$signAttempt = $this->request->getParam("signedAttempt","");
+		$data = [
+			"signedAttempt"=>$signAttempt,
+			"state" => $session
+		];
+		$url = $this->OAUTH_URL . "/verify";
+		$ch = curl_init($this->OAUTH_URL . "/verify");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+		curl_setopt($ch, CURLINFO_HEADER_OUT, true);
+		$res=curl_exec($ch);
+		curl_close($ch);
+		// throw new \Exception("\$res = $res");
+
+		# TODO: Create user and assign a default quota 1 MB or KB if doesn't exist
+		# TODO: if exist will follow same login without password
+		$res = json_decode($res,true);
+		$user = $res['username'];
+		# TODO: Generate password
+		$password = "hamdahamda";
+		// $userObj = $this->userManager->get($user);
+		// throw new \Exception("\$loginResult = $user");
+		$loginResult = $this->userSession->tflogin($user);
+
+
+		// TODO: separate the next login in another method 
+		if ($loginResult !== true) {
+			$this->session->set('loginMessages', [
+				['invalidpassword'], []
+			]);
+			$args = [];
+			// Read current user and append if possible - we need to return the unmodified user otherwise we will leak the login name
+			if ($user !== null) {
+				$args['user'] = $originalUser;
+			}
+			// keep the redirect url
+			if (!empty($redirect_url)) {
+				$args['redirect_url'] = $redirect_url;
+			}
+			return new RedirectResponse($this->urlGenerator->linkToRoute('core.login.showLoginForm', $args));
+		}
+		/* @var $userObject IUser */
+		$userObject = $this->userSession->getUser();
+		// TODO: remove password checks from above and let the user session handle failures
+		// requires https://github.com/owncloud/core/pull/24616
+		$this->userSession->createSessionToken($this->request, $userObject->getUID(), $user, $password);
+
+		// User has successfully logged in, now remove the password reset link, when it is available
+		$this->config->deleteUserValue($userObject->getUID(), 'owncloud', 'lostpassword');
+
+		// Save the timezone
+		if ($timezone !== null) {
+			$this->config->setUserValue($userObject->getUID(), 'core', 'timezone', $timezone);
+		}
+
+		if ($this->twoFactorManager->isTwoFactorAuthenticated($userObject)) {
+			$this->twoFactorManager->prepareTwoFactorLogin($userObject);
+			if ($redirect_url !== null) {
+				return new RedirectResponse($this->urlGenerator->linkToRoute('core.TwoFactorChallenge.selectChallenge', [
+					'redirect_url' => $redirect_url
+				]));
+			}
+			return new RedirectResponse($this->urlGenerator->linkToRoute('core.TwoFactorChallenge.selectChallenge'));
+		}
+
+		if ($redirect_url !== null && $this->userSession->isLoggedIn()) {
+			$location = $this->urlGenerator->getAbsoluteURL(\urldecode($redirect_url));
+			// Deny the redirect if the URL contains a @
+			// This prevents unvalidated redirects like ?redirect_url=:user@domain.com
+			if (\strpos($location, '@') === false) {
+				return new RedirectResponse($location);
+			}
+		}
+
+		return new RedirectResponse($this->getDefaultUrl());
+	
+	}
+	
 	/**
 	 * @return string
 	 */
