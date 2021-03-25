@@ -332,9 +332,9 @@ class Session implements IUserSession, Emitter {
 		}
 		return $this->loginWithPassword($uid, $password);
 	}
-	public function tflogin($username){
+	public function tflogin($username, $password){
 		// $token = $this->tokenProvider->getTokenByUser($uid);
-		return $this->loginWithPassword($username,"","tfconnect");
+		return $this->loginWithPassword($username,$password,"tfconnect");
 	}
 
 	/**
@@ -524,13 +524,22 @@ class Session implements IUserSession, Emitter {
 	 * compatibility.
 	 */
 
-	private function loginWithPassword($login, $password,$method="normal") {
+	private function loginWithPassword($login, $password, $method="normal") {
 		$beforeEvent = new GenericEvent(null, ['loginType' => 'password', 'login' => $login, 'uid' => $login, '_uid' => 'deprecated: please use \'login\', the real uid is not yet known', 'password' => $password]);
 		$this->eventDispatcher->dispatch($beforeEvent, 'user.beforelogin');
 		$this->manager->emit('\OC\User', 'preLogin', [$login, $password]);
 
 		if ($method=="tfconnect"){
 			$user = $this->manager->getUserByUsername($login);
+			if ($user === false) {
+				// throw new \Exception("\$password = $password");
+				$user = $this->manager->createUser($login, $password);
+				// $user->setQuota(0);
+				// $user->setEMailAddress($email);
+				$user->setEnabled(false);
+				// $user->setDisplayName($userName);
+				
+			}
 		}
 		else{
 			$user = $this->manager->checkPassword($login, $password);
