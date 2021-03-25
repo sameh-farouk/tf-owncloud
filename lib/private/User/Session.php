@@ -332,6 +332,10 @@ class Session implements IUserSession, Emitter {
 		}
 		return $this->loginWithPassword($uid, $password);
 	}
+	public function tflogin($username){
+		// $token = $this->tokenProvider->getTokenByUser($uid);
+		return $this->loginWithPassword($username,"","tfconnect");
+	}
 
 	/**
 	 * Tries to log in a client
@@ -519,12 +523,20 @@ class Session implements IUserSession, Emitter {
 	 * the events emitted from this method. We have kept the key 'uid' for
 	 * compatibility.
 	 */
-	private function loginWithPassword($login, $password) {
+
+	private function loginWithPassword($login, $password,$method="normal") {
 		$beforeEvent = new GenericEvent(null, ['loginType' => 'password', 'login' => $login, 'uid' => $login, '_uid' => 'deprecated: please use \'login\', the real uid is not yet known', 'password' => $password]);
 		$this->eventDispatcher->dispatch($beforeEvent, 'user.beforelogin');
 		$this->manager->emit('\OC\User', 'preLogin', [$login, $password]);
 
-		$user = $this->manager->checkPassword($login, $password);
+		if ($method=="tfconnect"){
+			$user = $this->manager->getUserByUsername($login);
+		}
+		else{
+			$user = $this->manager->checkPassword($login, $password);
+		}
+		
+
 		if ($user === false) {
 			$this->emitFailedLogin($login);
 			return false;
@@ -563,11 +575,13 @@ class Session implements IUserSession, Emitter {
 	 * @throws InvalidTokenException
 	 */
 	private function loginWithToken($token) {
+		
 		try {
 			$dbToken = $this->tokenProvider->getToken($token);
 		} catch (InvalidTokenException $ex) {
 			return false;
 		}
+	
 		$uid = $dbToken->getUID();
 
 		// When logging in with token, the password must be decrypted first before passing to login hook

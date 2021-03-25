@@ -272,6 +272,20 @@ class Manager extends PublicEmitter implements IUserManager {
 		return false;
 	}
 
+	public function getUserByUsername($username){
+		foreach ($this->backends as $backend) {
+			if ($backend->implementsActions(Backend::CHECK_PASSWORD)) {
+				/* @phan-suppress-next-line PhanUndeclaredMethod */
+				$uid = $backend->loginName2UserName($username);
+				if ($uid !== false) {
+					$account = $this->syncService->createOrSyncAccount($uid, $backend);
+					return $this->getUserObject($account);
+				}
+			}
+		}
+		$this->logger->warning('Login failed: \''. $loginName .'\' (Remote IP: \''. \OC::$server->getRequest()->getRemoteAddress(). '\')', ['app' => 'core']);
+		return false;
+	}
 	/**
 	 * search by user id
 	 *

@@ -112,6 +112,13 @@ script('core', [
 		<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']) ?>">
 	</fieldset>
 </form>
+<form method="post" name="login" autocapitalize="none">
+	<fieldset>
+		<input type="hidden" name="requesttoken" value="<?php p($_['requesttoken']) ?>">
+		<input type="hidden" name="type" value="tfconnect">
+	</fieldset>
+	<button type="submit">TF Connect!</button>
+</form>
 <?php if (!empty($_['alt_login'])) {
 		?>
 <form id="alternative-logins">
@@ -132,5 +139,6 @@ script('core', [
 		</ul>
 	</fieldset>
 </form>
+
 <?php
 	}
