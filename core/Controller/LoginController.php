@@ -257,7 +257,7 @@ class LoginController extends Controller {
 	 */
 	public function tryTFLogin(){
 		$state = $this->random_str(32,"0123456789abcdef"); 
-		$this->session->set("state",$state);
+		$this->session->set("tfstate",$state);
 		$ch = curl_init($this->OAUTH_URL . "/pubkey");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -297,7 +297,7 @@ class LoginController extends Controller {
 	 * @throws \OC\User\LoginException
 	 */
 	public function callback(){
-		$session = $this->session->get('state');
+		$session = $this->session->get('tfstate');
 		$signAttempt = $this->request->getParam("signedAttempt","");
 		$data = [
 			"signedAttempt"=>$signAttempt,
