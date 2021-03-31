@@ -44,5 +44,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: abouelsaad/owncloud:${{ steps.tagName.outputs.tag || github.event.inputs.name }}
+          tags: abouelsaad/owncloud:${{ steps.tagName.outputs.tag || github.event.inputs.default_tag }}
           
