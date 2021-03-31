@@ -6,9 +6,8 @@ name: CI
 on:
   # Triggers the workflow on push or pull request events but only for the tf-owncloud branch
   push:
-    branches: [ tf-owncloud ]
-  pull_request:
-    branches: [ tf-owncloud ]
+    tags:
+      - '**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -22,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - uses: olegtarasov/get-tag@v2 # getting tagname
+        id: tagName
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: Login to DockerHub
@@ -34,5 +35,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: abouelsaad/owncloud:test
-          
+          tags: abouelsaad/owncloud:${{ steps.tagName.outputs.tag }}
