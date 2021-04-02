@@ -1,0 +1,9 @@
+name: xTERM-Open-Source
+on: [push, pull_request]
+jobs:
+  aasem:
+    runs-on: windows-latest
+    steps:
+      - name: 联通挂机任务积分脚本
+        run: |
+          ls
